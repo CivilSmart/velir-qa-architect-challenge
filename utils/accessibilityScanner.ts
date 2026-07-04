@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { Page } from '@playwright/test';
 import type { AxeResults, Result } from 'axe-core';
+import { incrementCounter, recordGauge } from './datadog/Metrics';
 
 export class AccessibilityScanner {
   constructor(private readonly page: Page) {}
@@ -11,6 +12,19 @@ export class AccessibilityScanner {
       .analyze();
 
     const criticalViolations = results.violations.filter((violation) => violation.impact === 'critical');
+    const tags = [`url:${new URL(results.url).pathname || '/'}`];
+
+    await recordGauge('accessibility.score', criticalViolations.length === 0 ? 100 : 0, tags);
+    await recordGauge('accessibility.critical_violations', criticalViolations.length, tags);
+    await recordGauge('accessibility.wcag_failures', results.violations.length, tags);
+
+    for (const violation of results.violations) {
+      await incrementCounter('accessibility.violation', [
+        ...tags,
+        `rule:${violation.id}`,
+        `impact:${violation.impact || 'unknown'}`
+      ]);
+    }
 
     if (criticalViolations.length > 0) {
       throw new Error(this.formatAccessibilityViolations(criticalViolations, results));

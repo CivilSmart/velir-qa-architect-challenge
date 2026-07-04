@@ -4,4 +4,5 @@ test-results/
 blob-report/
 .env
 .inspection/
+.tmp-playwright-results/
 *.log

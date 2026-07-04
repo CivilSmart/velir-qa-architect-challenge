@@ -13,7 +13,9 @@ export default defineConfig({
   workers: process.env.CI ? 2 : undefined,
   reporter: [
     ['list'],
-    ['html', { open: 'never' }]
+    ['html', { open: 'never' }],
+    ...(process.env.CI ? [['junit', { outputFile: 'test-results/junit.xml' }] as const] : []),
+    ['./reporters/DatadogReporter.ts']
   ],
   use: {
     baseURL: env.baseUrl,

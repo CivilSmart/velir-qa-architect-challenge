@@ -1,0 +1,92 @@
+version: 2.1
+
+executors:
+  playwright:
+    docker:
+      - image: mcr.microsoft.com/playwright:v1.55.0-noble
+    working_directory: ~/project
+    environment:
+      BASE_URL: https://automationintesting.online
+      DD_ENV: ci
+      DD_SERVICE: velir-qa-framework
+      DD_METRIC_PREFIX: qa
+
+commands:
+  restore_node_cache:
+    steps:
+      - restore_cache:
+          keys:
+            - npm-v1-{{ checksum "package-lock.json" }}
+            - npm-v1-
+
+  save_node_cache:
+    steps:
+      - save_cache:
+          key: npm-v1-{{ checksum "package-lock.json" }}
+          paths:
+            - ~/.npm
+
+  collect_playwright_artifacts:
+    steps:
+      - run:
+          name: Prepare artifact directories
+          command: mkdir -p playwright-report test-results .tmp-playwright-results
+          when: always
+      - store_artifacts:
+          path: playwright-report
+          destination: playwright-report
+      - store_artifacts:
+          path: test-results
+          destination: test-results
+      - store_test_results:
+          path: test-results
+      - store_artifacts:
+          path: .tmp-playwright-results
+          destination: tmp-playwright-results
+
+jobs:
+  smoke:
+    executor: playwright
+    steps:
+      - checkout
+      - restore_node_cache
+      - run:
+          name: Install dependencies
+          command: npm ci
+      - save_node_cache
+      - run:
+          name: Typecheck
+          command: npm run typecheck
+      - run:
+          name: Playwright smoke tests
+          command: npm run test:smoke
+      - collect_playwright_artifacts
+
+  regression:
+    executor: playwright
+    steps:
+      - checkout
+      - restore_node_cache
+      - run:
+          name: Install dependencies
+          command: npm ci
+      - save_node_cache
+      - run:
+          name: Typecheck
+          command: npm run typecheck
+      - run:
+          name: Playwright full suite
+          command: npm test
+      - collect_playwright_artifacts
+
+workflows:
+  qa:
+    jobs:
+      - smoke
+      - regression:
+          requires:
+            - smoke
+          filters:
+            branches:
+              only:
+                - main

@@ -9,13 +9,16 @@
     "test:api": "playwright test tests/api",
     "test:a11y": "playwright test tests/accessibility",
     "test:smoke": "playwright test --grep @smoke",
+    "datadog:smoke": "node scripts/datadog-smoke.mjs",
     "report": "playwright show-report",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.2",
+    "@datadog/datadog-api-client": "^1.60.0",
     "@playwright/test": "^1.55.0",
     "@types/node": "^20.14.15",
+    "dotenv": "^17.4.2",
     "typescript": "^5.5.4"
   }
 }

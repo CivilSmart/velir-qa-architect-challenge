@@ -41,15 +41,131 @@ $env:BASE_URL = "https://automationintesting.online"
 npm test
 ```
 
+## Datadog Setup
+
+This framework sends custom Playwright metrics and events to Datadog through the official Datadog API client. Test files do not need Datadog code; the custom reporter and framework utilities handle telemetry centrally.
+
+Create a Datadog account in the correct region:
+
+```text
+US: https://app.datadoghq.com/
+EU: https://app.datadoghq.eu/
+```
+
+Create an API key in Datadog:
+
+- `DD_API_KEY`: Organization Settings -> API Keys -> New API Key
+
+Create a local `.env` from `.env.example`:
+
+```bash
+DD_SITE=datadoghq.com
+DD_API_KEY=xxxxxxxxxxxxxxxxxxxxx
+DD_ENV=local
+DD_SERVICE=velir-qa-framework
+DD_VERSION=1.0.0
+DD_METRIC_PREFIX=qa
+```
+
+Never commit `.env`.
+
+### Architecture
+
+```text
+Playwright
+  -> reporters/DatadogReporter.ts
+  -> utils/datadog/DatadogClient.ts
+  -> utils/datadog/Metrics.ts
+  -> utils/datadog/Events.ts
+  -> Datadog Metrics API + Events API
+  -> Datadog
+```
+
+### Metrics
+
+The reporter automatically emits metrics:
+
+```text
+qa.test.pass
+qa.test.fail
+qa.test.skip
+qa.test.total
+qa.test.expected
+qa.test.pass_rate
+qa.test.duration
+qa.retry
+qa.flaky
+qa.ui.pass
+qa.ui.fail
+qa.api.pass
+qa.api.fail
+qa.api.duration
+qa.a11y.pass
+qa.a11y.fail
+qa.accessibility.score
+qa.accessibility.critical_violations
+```
+
+Useful tags:
+
+```text
+env:local
+service:velir-qa-framework
+version:1.0.0
+framework:playwright
+repo:velir
+browser:chromium
+suite:smoke
+suite:regression
+module:booking
+module:contact
+module:rooms
+priority:critical
+priority:high
+feature:api
+feature:ui
+feature:a11y
+```
+
+The reporter also sends Datadog events with `source:playwright`, including suite started, suite completed, and failed test events.
+
+Run tests and send telemetry:
+
+```bash
+npm test
+```
+
+Run locally without sending telemetry:
+
+```bash
+DD_DRY_RUN=1 npm test
+```
+
+PowerShell:
+
+```powershell
+$env:DD_DRY_RUN = "1"
+npm test
+```
+
+Send a known metric/event sample to verify Datadog ingestion before running the full test suite:
+
+```bash
+npm run datadog:smoke
+```
+
+Dashboards and widgets should be managed in Datadog. This repository only sends metrics and events.
+
 ## Folder Structure
 
 ```text
 fixtures/          Playwright fixtures for page objects and API clients
 pages/             Page objects for user-facing workflows
+reporters/         Custom Playwright reporters, including Datadog telemetry
 tests/ui/          Browser-level user workflow tests
 tests/api/         REST API contract and negative tests
 tests/accessibility/ axe-core accessibility smoke tests
-utils/             Environment, constants, API helper, schemas, test data
+utils/             Environment, constants, API helper, schemas, Datadog clients, test data
 prompts/           AI prompt deliverable
 ```
 
@@ -77,16 +193,19 @@ prompts/           AI prompt deliverable
 
 ## CI/CD Recommendation
 
-Pull request:
+This repository includes a CircleCI pipeline in `.circleci/config.yml`.
+
+All branches:
 
 ```bash
 npm run typecheck
 npm run test:smoke
 ```
 
-Main branch:
+`main` branch after smoke passes:
 
 ```bash
+npm run typecheck
 npm test
 ```
 
@@ -96,6 +215,18 @@ Recommended artifacts:
 - Trace on failure
 - Screenshot on failure
 - Video on failure
+
+Set these CircleCI project environment variables when Datadog telemetry should be sent from CI:
+
+```text
+DD_API_KEY
+DD_SITE=datadoghq.com
+DD_ENV=ci
+DD_SERVICE=velir-qa-framework
+DD_METRIC_PREFIX=qa
+```
+
+If `DD_API_KEY` is not configured, the custom Datadog reporter skips telemetry and the tests still run normally.
 
 ## Future Improvements
 
