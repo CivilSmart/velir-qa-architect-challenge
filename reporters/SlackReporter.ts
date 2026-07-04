@@ -2,6 +2,7 @@ import type { FullConfig, FullResult, Reporter, Suite, TestCase, TestResult } fr
 import { sendSlackTestSummary } from '../utils/slack/SlackNotifier';
 
 type SlackTestTelemetry = {
+  id: string;
   title: string;
   suite: string;
   file: string;
@@ -14,7 +15,7 @@ type SlackTestTelemetry = {
 export default class SlackReporter implements Reporter {
   private startedAt = Date.now();
   private expectedTests = 0;
-  private tests: SlackTestTelemetry[] = [];
+  private tests = new Map<string, SlackTestTelemetry>();
 
   onBegin(_config: FullConfig, suite: Suite): void {
     this.startedAt = Date.now();
@@ -24,7 +25,8 @@ export default class SlackReporter implements Reporter {
   onTestEnd(test: TestCase, result: TestResult): void {
     const titlePath = test.titlePath();
 
-    this.tests.push({
+    this.tests.set(test.id, {
+      id: test.id,
       title: test.title,
       suite: titlePath.length > 2 ? titlePath[titlePath.length - 2] : 'root',
       file: test.location.file.replace(/\\/g, '/'),
@@ -37,17 +39,18 @@ export default class SlackReporter implements Reporter {
 
   async onEnd(result: FullResult): Promise<void> {
     const runDuration = Date.now() - this.startedAt;
-    const failedTests = this.tests.filter((test) => test.status !== 'passed' && test.status !== 'skipped');
-    const passedTests = this.tests.filter((test) => test.status === 'passed');
-    const skippedTests = this.tests.filter((test) => test.status === 'skipped');
-    const retriedTests = this.tests.filter((test) => test.retry > 0);
-    const passRate = this.tests.length === 0 ? 0 : (passedTests.length / this.tests.length) * 100;
-    const failureRate = this.tests.length === 0 ? 0 : (failedTests.length / this.tests.length) * 100;
-    const retryRate = this.tests.length === 0 ? 0 : (retriedTests.length / this.tests.length) * 100;
+    const tests = [...this.tests.values()];
+    const failedTests = tests.filter((test) => test.status !== 'passed' && test.status !== 'skipped');
+    const passedTests = tests.filter((test) => test.status === 'passed');
+    const skippedTests = tests.filter((test) => test.status === 'skipped');
+    const retriedTests = tests.filter((test) => test.retry > 0);
+    const passRate = tests.length === 0 ? 0 : (passedTests.length / tests.length) * 100;
+    const failureRate = tests.length === 0 ? 0 : (failedTests.length / tests.length) * 100;
+    const retryRate = tests.length === 0 ? 0 : (retriedTests.length / tests.length) * 100;
 
     await sendSlackTestSummary({
       status: result.status,
-      total: this.tests.length,
+      total: tests.length,
       expected: this.expectedTests,
       passed: passedTests.length,
       failed: failedTests.length,

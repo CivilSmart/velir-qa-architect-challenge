@@ -3,6 +3,7 @@ import { sendEvent } from '../utils/datadog/Events';
 import { normalizeTagValue, sendMetrics } from '../utils/datadog/Metrics';
 
 type TestTelemetry = {
+  id: string;
   title: string;
   suite: string;
   file: string;
@@ -17,7 +18,7 @@ type TestTelemetry = {
 export default class DatadogReporter implements Reporter {
   private startedAt = Date.now();
   private expectedTests = 0;
-  private tests: TestTelemetry[] = [];
+  private tests = new Map<string, TestTelemetry>();
 
   onBegin(_config: FullConfig, suite: Suite): void {
     this.startedAt = Date.now();
@@ -31,7 +32,8 @@ export default class DatadogReporter implements Reporter {
     const suite = titlePath.length > 2 ? titlePath[titlePath.length - 2] : 'root';
     const tags = this.extractTags(test);
 
-    this.tests.push({
+    this.tests.set(test.id, {
+      id: test.id,
       title: test.title,
       suite,
       file: test.location.file.replace(/\\/g, '/'),
@@ -46,16 +48,17 @@ export default class DatadogReporter implements Reporter {
 
   async onEnd(result: FullResult): Promise<void> {
     const runDuration = Date.now() - this.startedAt;
-    const failedTests = this.tests.filter((test) => test.status !== 'passed' && test.status !== 'skipped');
-    const passedTests = this.tests.filter((test) => test.status === 'passed');
-    const skippedTests = this.tests.filter((test) => test.status === 'skipped');
-    const retriedTests = this.tests.filter((test) => test.retry > 0);
-    const passRate = this.tests.length === 0 ? 0 : (passedTests.length / this.tests.length) * 100;
-    const failureRate = this.tests.length === 0 ? 0 : (failedTests.length / this.tests.length) * 100;
-    const retryRate = this.tests.length === 0 ? 0 : (retriedTests.length / this.tests.length) * 100;
+    const tests = [...this.tests.values()];
+    const failedTests = tests.filter((test) => test.status !== 'passed' && test.status !== 'skipped');
+    const passedTests = tests.filter((test) => test.status === 'passed');
+    const skippedTests = tests.filter((test) => test.status === 'skipped');
+    const retriedTests = tests.filter((test) => test.retry > 0);
+    const passRate = tests.length === 0 ? 0 : (passedTests.length / tests.length) * 100;
+    const failureRate = tests.length === 0 ? 0 : (failedTests.length / tests.length) * 100;
+    const retryRate = tests.length === 0 ? 0 : (retriedTests.length / tests.length) * 100;
 
     const metrics = [
-      { name: 'test.total', value: this.tests.length, tags: ['status:all'], type: 'gauge' as const },
+      { name: 'test.total', value: tests.length, tags: ['status:all'], type: 'gauge' as const },
       { name: 'test.expected', value: this.expectedTests, type: 'gauge' as const },
       { name: 'test.pass', value: passedTests.length, tags: ['status:passed'], type: 'count' as const },
       { name: 'test.fail', value: failedTests.length, tags: ['status:failed'], type: 'count' as const },
@@ -70,7 +73,7 @@ export default class DatadogReporter implements Reporter {
       { name: 'flaky', value: retriedTests.filter((test) => test.status === 'passed').length, type: 'count' as const }
     ];
 
-    for (const test of this.tests) {
+    for (const test of tests) {
       const tags = this.testTags(test);
       const suiteTags = this.suiteTags(test);
 
@@ -115,7 +118,7 @@ export default class DatadogReporter implements Reporter {
       `Playwright Suite ${result.status}`,
       [
         `Status: ${result.status}`,
-        `Total: ${this.tests.length}`,
+        `Total: ${tests.length}`,
         `Passed: ${passedTests.length}`,
         `Failed: ${failedTests.length}`,
         `Skipped: ${skippedTests.length}`,
