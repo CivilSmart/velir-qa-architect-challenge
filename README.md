@@ -228,6 +228,14 @@ DD_METRIC_PREFIX=qa
 
 If `DD_API_KEY` is not configured, the custom Datadog reporter skips telemetry and the tests still run normally.
 
+Set this CircleCI project environment variable when Slack build alerts should be sent:
+
+```text
+SLACK_WEBHOOK_URL
+```
+
+The pipeline posts a Slack alert for smoke and regression job success or failure. If `SLACK_WEBHOOK_URL` is not configured, the Slack step is skipped without failing the build.
+
 ## Future Improvements
 
 - Add full booking creation in an isolated test environment with teardown.

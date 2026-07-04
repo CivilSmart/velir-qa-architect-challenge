@@ -30,7 +30,7 @@ export function expectValidRoom(room: Room): void {
   expect(room.type).not.toHaveLength(0);
   expect(room.roomPrice).toBeGreaterThanOrEqual(businessRules.minimumRoomPrice);
   expect(Array.isArray(room.features)).toBe(true);
-  expect(room.image).toMatch(/^\/images\//);
+  expect(room.image).toMatch(/^(\/images\/|https?:\/\/).+\.(jpg|jpeg|png|webp)$/i);
 }
 
 export function expectValidRoomsResponse(body: RoomsResponse): void {

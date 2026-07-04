@@ -44,6 +44,52 @@ commands:
           path: .tmp-playwright-results
           destination: tmp-playwright-results
 
+  notify_slack:
+    parameters:
+      status:
+        type: string
+      color:
+        type: string
+      when:
+        type: enum
+        enum: ["on_success", "on_fail", "always"]
+        default: always
+    steps:
+      - run:
+          name: Notify Slack (<< parameters.status >>)
+          when: << parameters.when >>
+          command: |
+            if [ -z "$SLACK_WEBHOOK_URL" ]; then
+              echo "SLACK_WEBHOOK_URL is not configured; skipping Slack notification."
+              exit 0
+            fi
+
+            node <<'NODE' > /tmp/slack-payload.json
+            const payload = {
+              attachments: [
+                {
+                  color: process.env.SLACK_COLOR,
+                  title: `CircleCI ${process.env.SLACK_STATUS}: ${process.env.CIRCLE_PROJECT_REPONAME}`,
+                  title_link: process.env.CIRCLE_BUILD_URL,
+                  fields: [
+                    { title: 'Job', value: process.env.CIRCLE_JOB || 'unknown', short: true },
+                    { title: 'Branch', value: process.env.CIRCLE_BRANCH || 'unknown', short: true },
+                    { title: 'Workflow', value: process.env.CIRCLE_WORKFLOW_ID || 'unknown', short: false },
+                    { title: 'Commit', value: process.env.CIRCLE_SHA1 ? process.env.CIRCLE_SHA1.slice(0, 7) : 'unknown', short: true }
+                  ],
+                  footer: 'Playwright QA pipeline'
+                }
+              ]
+            };
+
+            process.stdout.write(JSON.stringify(payload));
+            NODE
+
+            curl -fsS -X POST -H 'Content-type: application/json' --data @/tmp/slack-payload.json "$SLACK_WEBHOOK_URL"
+          environment:
+            SLACK_STATUS: << parameters.status >>
+            SLACK_COLOR: << parameters.color >>
+
 jobs:
   smoke:
     executor: playwright
@@ -61,6 +107,14 @@ jobs:
           name: Playwright smoke tests
           command: npm run test:smoke
       - collect_playwright_artifacts
+      - notify_slack:
+          status: passed
+          color: "#2eb67d"
+          when: on_success
+      - notify_slack:
+          status: failed
+          color: "#e01e5a"
+          when: on_fail
 
   regression:
     executor: playwright
@@ -78,6 +132,14 @@ jobs:
           name: Playwright full suite
           command: npm test
       - collect_playwright_artifacts
+      - notify_slack:
+          status: passed
+          color: "#2eb67d"
+          when: on_success
+      - notify_slack:
+          status: failed
+          color: "#e01e5a"
+          when: on_fail
 
 workflows:
   qa:
