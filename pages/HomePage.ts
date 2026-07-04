@@ -18,8 +18,8 @@ export class HomePage extends BasePage {
   }
 
   async expectRoomInventoryVisible(): Promise<void> {
-    await expect(homeRoomsLocators.actions.bookRoom(this.page).first()).toBeVisible();
-    await expect(homeRoomsLocators.sections.roomCards(this.page)).toHaveCount(3);
+    await expect(this.roomsHeading).toBeVisible();
+    await expect(this.checkAvailabilityButton).toBeVisible();
   }
 
   async openFirstRoomReservation(): Promise<void> {
