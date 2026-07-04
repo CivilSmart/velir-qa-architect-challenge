@@ -58,38 +58,15 @@ function buildPayload(summary: SlackTestSummary): Record<string, unknown> {
   const title = `${passed ? ':white_check_mark:' : ':x:'} Playwright Suite ${status}`;
   const buildUrl = process.env.CIRCLE_BUILD_URL;
   const artifactsUrl = buildUrl ? `${buildUrl}#artifacts/containers/0` : undefined;
-  const table = [
-    row('Status', status),
-    row('Project', process.env.CIRCLE_PROJECT_REPONAME || 'velir-qa-framework'),
-    row('Branch', process.env.CIRCLE_BRANCH || 'local'),
-    row('Job', process.env.CIRCLE_JOB || 'local'),
-    row('Commit', process.env.CIRCLE_SHA1?.slice(0, 7) || 'local'),
-    row('Triggered By', process.env.CIRCLE_USERNAME || process.env.USERNAME || 'local'),
-    row('Expected', summary.expected),
-    row('Total', summary.total),
-    row('Passed', summary.passed),
-    row('Failed', summary.failed),
-    row('Skipped', summary.skipped),
-    row('Retries', summary.retries),
-    row('Pass Rate', `${summary.passRate.toFixed(2)}%`),
-    row('Failure Rate', `${summary.failureRate.toFixed(2)}%`),
-    row('Retry Rate', `${summary.retryRate.toFixed(2)}%`),
-    row('Duration', formatDuration(summary.durationMs))
-  ].join('\n');
+  const datadogDashboardUrl = 'https://us5.datadoghq.com/dashboard/sii-vp6-jdc/velir-qa-automation';
+  const project = process.env.CIRCLE_PROJECT_REPONAME || 'velir-qa-framework';
+  const branch = process.env.CIRCLE_BRANCH || 'local';
+  const job = process.env.CIRCLE_JOB || 'local';
+  const commit = process.env.CIRCLE_SHA1?.slice(0, 7) || 'local';
+  const triggeredBy = process.env.CIRCLE_USERNAME || process.env.USERNAME || 'local';
+  const summaryLine = `*${summary.passed}/${summary.total} passed* | *${summary.failed} failed* | *${summary.skipped} skipped*`;
   const failedTests = summary.failedTests.slice(0, 5);
-  const failedTestsText =
-    failedTests.length > 0
-      ? `\n*Failed tests:*\n${failedTests
-          .map((test) => `- ${escapeSlack(test.title)} (${escapeSlack(test.project)}, retry ${test.retry}, ${formatDuration(test.duration)})`)
-          .join('\n')}`
-      : '';
-  const linksText = [
-    buildUrl ? `*Build:* <${buildUrl}|Open CircleCI job>` : undefined,
-    artifactsUrl ? `*Artifacts:* <${artifactsUrl}|Playwright report, traces, screenshots, videos>` : undefined
-  ]
-    .filter(Boolean)
-    .join('\n');
-
+  
   return {
     text: `Playwright Suite ${status}`,
     attachments: [
@@ -98,16 +75,39 @@ function buildPayload(summary: SlackTestSummary): Record<string, unknown> {
         fallback: `Playwright Suite ${status}`,
         title,
         title_link: buildUrl,
-        text: [`*High-level result summary*`, `\`\`\`${escapeSlack(table)}\`\`\``, linksText, failedTestsText].filter(Boolean).join('\n'),
-        mrkdwn_in: ['text'],
+        text: [
+          summaryLine,
+        ]
+          .filter(Boolean)
+          .join('\n'),
+        fields: [
+          field('Status', status),
+          field('Duration', formatDuration(summary.durationMs)),
+          field('Total Tests', summary.total),
+          field('Passed', summary.passed),
+          field('Failed', summary.failed),
+          field('Skipped', summary.skipped),
+          field('Job', job),
+          field('Project', project),
+          field('Branch', branch),
+          field('Commit', commit),
+          field('Triggered By', triggeredBy),
+          field('Datadog Report', `<${datadogDashboardUrl}|Open Dashboard>`),
+          field('CircleCI Artifacts', artifactsUrl ? `<${artifactsUrl}|Open Artifacts>` : 'n/a')
+        ],
+        mrkdwn_in: ['text', 'fields'],
         footer: `Workflow: ${process.env.CIRCLE_WORKFLOW_ID || 'local'}`
       }
     ]
   };
 }
 
-function row(label: string, detail: string | number): string {
-  return `${label.padEnd(14)} ${detail}`;
+function field(title: string, value: string | number): Record<string, string | boolean> {
+  return {
+    title,
+    value: String(value),
+    short: true
+  };
 }
 
 function formatDuration(ms: number): string {
