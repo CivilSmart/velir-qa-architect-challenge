@@ -16,7 +16,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.10.2",
     "@datadog/datadog-api-client": "^1.60.0",
-    "@playwright/test": "^1.55.0",
+    "@playwright/test": "1.61.1",
     "@types/node": "^20.14.15",
     "dotenv": "^17.4.2",
     "typescript": "^5.5.4"
