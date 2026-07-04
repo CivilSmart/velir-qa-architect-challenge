@@ -1,0 +1,21 @@
+{
+  "name": "velir-qa-architect-playwright",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Interview-quality Playwright solution for the Restful Booker Platform QA Architect challenge.",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test tests/ui",
+    "test:api": "playwright test tests/api",
+    "test:a11y": "playwright test tests/accessibility",
+    "test:smoke": "playwright test --grep @smoke",
+    "report": "playwright show-report",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^20.14.15",
+    "typescript": "^5.5.4"
+  }
+}
