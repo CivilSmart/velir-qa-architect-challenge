@@ -64,20 +64,165 @@ commands:
               exit 0
             fi
 
-            node <<'NODE' > /tmp/slack-payload.json
+            node \<<'NODE' > /tmp/slack-payload.json
+            const fs = require('fs');
+
+            const value = (name, fallback = 'n/a') => process.env[name] || fallback;
+            const escapeSlack = (text) => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const shortSha = value('CIRCLE_SHA1', '').slice(0, 7) || 'n/a';
+            const buildUrl = value('CIRCLE_BUILD_URL', '');
+            const artifactsUrl = buildUrl ? `${buildUrl}#artifacts/containers/0` : '';
+
+            function readJunitSummary() {
+              const file = 'test-results/junit.xml';
+
+              if (!fs.existsSync(file)) {
+                return {
+                  available: false,
+                  total: 'n/a',
+                  passed: 'n/a',
+                  failed: 'n/a',
+                  skipped: 'n/a',
+                  passRate: 'n/a',
+                  duration: 'n/a',
+                  failedTests: []
+                };
+              }
+
+              const xml = fs.readFileSync(file, 'utf8');
+              const suiteMatches = [...xml.matchAll(/<testsuite\b([^>]*)>/g)];
+              const attr = (source, name) => {
+                const match = source.match(new RegExp(`${name}="([^"]*)"`, 'i'));
+                return match ? Number(match[1]) : 0;
+              };
+              const totals = suiteMatches.reduce(
+                (acc, match) => {
+                  const attrs = match[1];
+                  acc.total += attr(attrs, 'tests');
+                  acc.failures += attr(attrs, 'failures');
+                  acc.errors += attr(attrs, 'errors');
+                  acc.skipped += attr(attrs, 'skipped');
+                  acc.time += attr(attrs, 'time');
+                  return acc;
+                },
+                { total: 0, failures: 0, errors: 0, skipped: 0, time: 0 }
+              );
+
+              const failed = totals.failures + totals.errors;
+              const passed = Math.max(totals.total - failed - totals.skipped, 0);
+              const passRate = totals.total > 0 ? `${((passed / totals.total) * 100).toFixed(2)}%` : 'n/a';
+              const failedTests = [...xml.matchAll(/<testcase\b([^>]*)>[\s\S]*?<(failure|error)\b/g)]
+                .slice(0, 5)
+                .map((match) => {
+                  const name = match[1].match(/name="([^"]*)"/i)?.[1] || 'unknown test';
+                  const classname = match[1].match(/classname="([^"]*)"/i)?.[1];
+                  return classname ? `${classname} - ${name}` : name;
+                });
+
+              return {
+                available: true,
+                total: totals.total,
+                passed,
+                failed,
+                skipped: totals.skipped,
+                passRate,
+                duration: formatDuration(totals.time * 1000),
+                failedTests
+              };
+            }
+
+            function formatDuration(ms) {
+              if (!Number.isFinite(ms) || ms <= 0) {
+                return 'n/a';
+              }
+
+              const totalSeconds = Math.round(ms / 1000);
+              const minutes = Math.floor(totalSeconds / 60);
+              const seconds = totalSeconds % 60;
+              return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+            }
+
+            function row(label, detail) {
+              return `${label.padEnd(14)} ${detail}`;
+            }
+
+            const summary = readJunitSummary();
+            const status = value('SLACK_STATUS').toUpperCase();
+            const icon = status === 'PASSED' ? ':white_check_mark:' : ':x:';
+            const table = [
+              row('Status', status),
+              row('Project', value('CIRCLE_PROJECT_REPONAME')),
+              row('Job', value('CIRCLE_JOB')),
+              row('Branch', value('CIRCLE_BRANCH')),
+              row('Commit', shortSha),
+              row('Triggered By', value('CIRCLE_USERNAME')),
+              row('Total Tests', summary.total),
+              row('Passed', summary.passed),
+              row('Failed', summary.failed),
+              row('Skipped', summary.skipped),
+              row('Pass Rate', summary.passRate),
+              row('Duration', summary.duration),
+              row('Build', `#${value('CIRCLE_BUILD_NUM')}`)
+            ].join('\n');
+
+            const blocks = [
+              {
+                type: 'header',
+                text: {
+                  type: 'plain_text',
+                  text: `${icon} Playwright ${value('CIRCLE_JOB')} ${status}`,
+                  emoji: true
+                }
+              },
+              {
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: `*High-level result summary*\n\`\`\`${escapeSlack(table)}\`\`\``
+                }
+              },
+              {
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: [
+                    buildUrl ? `*Build:* <${buildUrl}|Open CircleCI job>` : '*Build:* n/a',
+                    artifactsUrl ? `*Artifacts:* <${artifactsUrl}|Playwright report, traces, screenshots, videos>` : '*Artifacts:* n/a'
+                  ].join('\n')
+                }
+              }
+            ];
+
+            if (!summary.available) {
+              blocks.push({
+                type: 'context',
+                elements: [
+                  {
+                    type: 'mrkdwn',
+                    text: 'JUnit results were not available. This usually means the job failed before Playwright produced test output.'
+                  }
+                ]
+              });
+            }
+
+            if (summary.failedTests.length > 0) {
+              blocks.push({
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: `*Failed tests:*\n${summary.failedTests.map((test) => `- ${escapeSlack(test)}`).join('\n')}`
+                }
+              });
+            }
+
             const payload = {
+              text: `Playwright ${value('CIRCLE_JOB')} ${status} - ${value('CIRCLE_PROJECT_REPONAME')}`,
               attachments: [
                 {
                   color: process.env.SLACK_COLOR,
-                  title: `CircleCI ${process.env.SLACK_STATUS}: ${process.env.CIRCLE_PROJECT_REPONAME}`,
-                  title_link: process.env.CIRCLE_BUILD_URL,
-                  fields: [
-                    { title: 'Job', value: process.env.CIRCLE_JOB || 'unknown', short: true },
-                    { title: 'Branch', value: process.env.CIRCLE_BRANCH || 'unknown', short: true },
-                    { title: 'Workflow', value: process.env.CIRCLE_WORKFLOW_ID || 'unknown', short: false },
-                    { title: 'Commit', value: process.env.CIRCLE_SHA1 ? process.env.CIRCLE_SHA1.slice(0, 7) : 'unknown', short: true }
-                  ],
-                  footer: 'Playwright QA pipeline'
+                  fallback: `Playwright ${value('CIRCLE_JOB')} ${status}`,
+                  blocks,
+                  footer: `Workflow: ${value('CIRCLE_WORKFLOW_ID')}`
                 }
               ]
             };

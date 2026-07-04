@@ -234,7 +234,7 @@ Set this CircleCI project environment variable when Slack build alerts should be
 SLACK_WEBHOOK_URL
 ```
 
-The pipeline posts a Slack alert for smoke and regression job success or failure. If `SLACK_WEBHOOK_URL` is not configured, the Slack step is skipped without failing the build.
+The pipeline posts a customized Slack alert for smoke and regression job success or failure. Alerts include a high-level result table with job status, project, branch, commit, trigger user, test totals, passed/failed/skipped counts, pass rate, duration, build number, and links to the CircleCI job and Playwright artifacts. If `SLACK_WEBHOOK_URL` is not configured, the Slack step is skipped without failing the build.
 
 ## Future Improvements
 
