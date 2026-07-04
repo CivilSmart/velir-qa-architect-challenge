@@ -16,6 +16,5 @@ export const Module = {
 
 export const Priority = {
   P0: '@critical',
-  P1: '@high',
-  P2: '@medium'
+  P1: '@high'
 } as const;

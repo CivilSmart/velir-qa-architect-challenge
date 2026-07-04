@@ -33,26 +33,6 @@ export class ApiClient {
     };
   }
 
-  async expectRoomInventoryContractIsValid(): Promise<void> {
-    const body = await this.getRooms();
-    expectValidRoomsResponse(body);
-  }
-
-  async expectFutureAvailabilityContractIsValid(): Promise<void> {
-    const body = await this.getAvailableRooms(testDates.checkin, testDates.checkout);
-    expectValidRoomsResponse(body);
-  }
-
-  async expectInvalidBookingPayloadIsRejected(): Promise<void> {
-    const { status, body } = await this.createInvalidBooking();
-
-    expect(status).toBe(400);
-    expect(body.errors).toEqual(expect.arrayContaining([
-      expect.stringContaining('Firstname'),
-      expect.stringContaining('Lastname')
-    ]));
-  }
-
   async requestRoomInventory(): Promise<void> {
     this.latestRoomsResponse = await this.getRooms();
   }

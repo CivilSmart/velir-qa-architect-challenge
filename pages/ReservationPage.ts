@@ -18,9 +18,4 @@ export class ReservationPage extends BasePage {
     await expect(this.bookThisRoomHeading).toBeVisible();
     await expect(this.reserveNowButton.first()).toBeVisible();
   }
-
-  async attemptReservationWithoutGuestDetails(): Promise<void> {
-    await this.reserveNowButton.first().click();
-    await expect(this.page.getByText(/Firstname should not be blank|Lastname should not be blank/)).toBeVisible();
-  }
 }

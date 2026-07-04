@@ -7,8 +7,5 @@ export const homeRoomsLocators = {
   actions: {
     checkAvailability: (page: Page) => page.getByRole('button', { name: 'Check Availability' }),
     bookRoom: (page: Page) => page.locator('#rooms').getByRole('link', { name: 'Book now', exact: true })
-  },
-  sections: {
-    roomCards: (page: Page) => page.locator('#rooms .card')
   }
 } as const;

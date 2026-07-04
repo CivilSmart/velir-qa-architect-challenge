@@ -56,8 +56,7 @@ export default class SlackReporter implements Reporter {
       passRate,
       failureRate,
       retryRate,
-      durationMs: runDuration,
-      failedTests
+      durationMs: runDuration
     });
   }
 }

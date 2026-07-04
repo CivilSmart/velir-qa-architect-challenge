@@ -50,11 +50,6 @@ export class HomePage extends BasePage {
     await contactFormLocators.actions.submit(this.page).click();
   }
 
-  async expectRequiredContactValidationMessages(): Promise<void> {
-    await this.expectContactEmailRequiredValidation();
-    await this.expectContactNameRequiredValidation();
-  }
-
   async expectContactEmailRequiredValidation(): Promise<void> {
     await expect(contactFormLocators.validationMessages.emailRequired(this.page)).toBeVisible();
   }

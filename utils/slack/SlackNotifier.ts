@@ -14,14 +14,6 @@ export type SlackTestSummary = {
   failureRate: number;
   retryRate: number;
   durationMs: number;
-  failedTests: Array<{
-    title: string;
-    suite: string;
-    file: string;
-    project: string;
-    retry: number;
-    duration: number;
-  }>;
 };
 
 export async function sendSlackTestSummary(summary: SlackTestSummary): Promise<void> {
@@ -65,8 +57,7 @@ function buildPayload(summary: SlackTestSummary): Record<string, unknown> {
   const commit = process.env.CIRCLE_SHA1?.slice(0, 7) || 'local';
   const triggeredBy = process.env.CIRCLE_USERNAME || process.env.USERNAME || 'local';
   const summaryLine = `*${summary.passed}/${summary.total} passed* | *${summary.failed} failed* | *${summary.skipped} skipped*`;
-  const failedTests = summary.failedTests.slice(0, 5);
-  
+
   return {
     text: `Playwright Suite ${status}`,
     attachments: [
@@ -75,11 +66,7 @@ function buildPayload(summary: SlackTestSummary): Record<string, unknown> {
         fallback: `Playwright Suite ${status}`,
         title,
         title_link: buildUrl,
-        text: [
-          summaryLine,
-        ]
-          .filter(Boolean)
-          .join('\n'),
+        text: summaryLine,
         fields: [
           field('Status', status),
           field('Duration', formatDuration(summary.durationMs)),
@@ -119,8 +106,4 @@ function formatDuration(ms: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
-}
-
-function escapeSlack(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

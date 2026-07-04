@@ -10,11 +10,3 @@ export const testDates = {
 };
 
 export const invalidBookingPayload = {};
-
-export const validContactMessage = {
-  name: 'Avery Tester',
-  email: 'avery.tester@example.com',
-  phone: '01234567890',
-  subject: 'Accessibility question',
-  description: 'Please confirm whether accessible rooms can be requested during booking.'
-};
