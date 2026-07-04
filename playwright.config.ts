@@ -15,7 +15,8 @@ export default defineConfig({
     ['list'],
     ['html', { open: 'never' }],
     ...(process.env.CI ? [['junit', { outputFile: 'test-results/junit.xml' }] as const] : []),
-    ['./reporters/DatadogReporter.ts']
+    ['./reporters/DatadogReporter.ts'],
+    ['./reporters/SlackReporter.ts']
   ],
   use: {
     baseURL: env.baseUrl,

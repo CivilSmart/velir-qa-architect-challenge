@@ -129,6 +129,16 @@ feature:a11y
 
 The reporter also sends Datadog events with `source:playwright`, including suite started, suite completed, and failed test events.
 
+## Slack Alerts
+
+A separate Slack reporter sends an alert after the Playwright suite completes. Set `SLACK_WEBHOOK_URL` locally or in CircleCI project environment variables:
+
+```text
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+```
+
+Alerts include a high-level result table with suite status, project, branch, job, commit, trigger user, expected/total tests, passed/failed/skipped counts, retry count, pass/failure/retry rates, duration, and links to the CircleCI job and Playwright artifacts when running in CI. If `SLACK_WEBHOOK_URL` is not configured, the Slack reporter skips notification without failing the test run.
+
 Run tests and send telemetry:
 
 ```bash
@@ -228,13 +238,13 @@ DD_METRIC_PREFIX=qa
 
 If `DD_API_KEY` is not configured, the custom Datadog reporter skips telemetry and the tests still run normally.
 
-Set this CircleCI project environment variable when Slack build alerts should be sent:
+Set this CircleCI project environment variable when Slack suite alerts should be sent:
 
 ```text
 SLACK_WEBHOOK_URL
 ```
 
-The pipeline posts a customized Slack alert for smoke and regression job success or failure. Alerts include a high-level result table with job status, project, branch, commit, trigger user, test totals, passed/failed/skipped counts, pass rate, duration, build number, and links to the CircleCI job and Playwright artifacts. If `SLACK_WEBHOOK_URL` is not configured, the Slack step is skipped without failing the build.
+The Slack reporter posts the customized alert after the suite completes. Datadog telemetry remains handled by the separate Datadog reporter. Do not commit the webhook URL to this repository.
 
 ## Future Improvements
 
